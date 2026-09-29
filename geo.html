@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ศูนย์ข้อมูลรอยเลื่อนมีพลังในประเทศไทย - Thailand Active Faults Portal</title>
+  
+  <!-- Google Fonts: Anupan & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anupan:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Anupan', 'Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              navy: '#0f172a',
+              slate: '#1e293b',
+              red: '#dc2626',
+              orange: '#ea580c',
+              amber: '#d97706',
+              emerald: '#059669',
+              lightBg: '#f8fafc',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Leaflet CSS & JS for Interactive Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+  <style>
+    body {
+      font-family: 'Anupan', sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+      overflow-x: hidden;
+    }
+
+    /* Wix Template 3118 Academic Top Strip */
+    .academic-top-bar {
+      background: linear-gradient(90deg, #0f172a 0%, #1e293b 100%);
+    }
+
+    /* Wix Navigation Tab Active Indicator */
+    .nav-tab-btn {
+      position: relative;
+      transition: all 0.25s ease;
+    }
+    .nav-tab-btn.active {
+      color: #dc2626;
+      font-weight: 700;
+    }
+    .nav-tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background-color: #dc2626;
+      border-radius: 3px 3px 0 0;
+    }
+
+    /* Sub-menu filter buttons */
+    .filter-btn {
+      transition: all 0.2s ease;
+    }
+    .filter-btn.active {
+      background-color: #1e293b;
+      color: #ffffff;
+      border-color: #1e293b;
+      box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.15);
+    }
+
+    /* Leaflet map container styling */
+    #map {
+      height: 600px;
+      width: 100%;
+      border-radius: 1rem;
+      z-index: 10;
+    }
+
+    /* Custom Glassmorphism Cards */
+    .glass-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(8px);
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.05);
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    /* Pulse animation for epicenters */
+    @keyframes pulse-epicenter {
+      0% {
+        transform: scale(0.9);
+        opacity: 1;
+      }
+      70% {
+        transform: scale(2.2);
+        opacity: 0;
+      }
+      100% {
+        transform: scale(0.9);
+        opacity: 0;
+      }
+    }
+    .epicenter-ring {
+      animation: pulse-epicenter 2s infinite ease-out;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- 1. Academic Top Announcement Bar -->
+  <div class="academic-top-bar text-white text-xs sm:text-sm py-2 px-4 sm:px-8 flex justify-between items-center border-b border-slate-800">
+    <div class="flex items-center space-x-2">
+      <span class="inline-block w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+      <span>ระบบเฝ้าระวังและสารสนเทศ <strong>กลุ่มรอยเลื่อนมีพลังในประเทศไทย (16 กลุ่มรอยเลื่อนหลัก)</strong></span>
+    </div>
+    <div class="hidden md:flex items-center space-x-6 text-slate-300">
+      <span>คลังข้อมูลธรณีวิทยาและพิบัติภัยแผ่นดินไหว</span>
+      <span class="text-amber-400 font-medium">ปรับปรุงข้อมูลล่าสุดปี 2026</span>
+    </div>
+  </div>
+
+  <!-- 2. Main Navigation Header (Wix Academic Template 3118 Style) -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-8 flex justify-between items-center h-20">
+      
+      <!-- Brand Logo -->
+      <div class="flex items-center space-x-3 cursor-pointer" onclick="scrollToSection('map-section')">
+        <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-red-600 to-amber-600 flex items-center justify-center text-white text-xl shadow-md shadow-red-500/20">
+          🌋
+        </div>
+        <div>
+          <h1 class="text-lg sm:text-xl font-bold text-slate-900 leading-tight">รอยเลื่อนมีพลังในประเทศไทย</h1>
+          <p class="text-xs text-slate-500 font-medium">Active Fault Lines & Earthquake Geology</p>
+        </div>
+      </div>
+
+      <!-- Main Navigation Text Tabs -->
+      <nav class="hidden lg:flex space-x-8 h-full items-center">
+        <button id="nav-map" class="nav-tab-btn active text-slate-600 font-medium text-sm sm:text-base py-7 px-1" onclick="switchNavTab('map-section', this)">
+          🗺️ แผนที่ปฏิสัมพันธ์รอยเลื่อน (Interactive Map)
+        </button>
+        <button id="nav-types" class="nav-tab-btn text-slate-600 font-medium text-sm sm:text-base py-7 px-1" onclick="switchNavTab('types-section', this)">
+          ⚡ ประเภทการเคลื่อนตัว (Fault Mechanisms)
+        </button>
+        <button id="nav-safety" class="nav-tab-btn text-slate-600 font-medium text-sm sm:text-base py-7 px-1" onclick="switchNavTab('safety-section', this)">
+          🛡️ ข้อควรปฏิบัติเมื่อเกิดแผ่นดินไหว (Safety & Preparedness)
+        </button>
+        <button id="nav-about" class="nav-tab-btn text-slate-600 font-medium text-sm sm:text-base py-7 px-1" onclick="switchNavTab('about-section', this)">
+          📖 นิยามรอยเลื่อนมีพลัง (Active Fault Concept)
+        </button>
+      </nav>
+
+      <!-- Mobile Menu Button -->
+      <button class="lg:hidden p-2 text-slate-600 hover:text-red-600 rounded-lg border border-slate-200" onclick="toggleMobileMenu()">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+      </button>
+    </div>
+
+    <!-- Mobile Navigation Menu -->
+    <div id="mobile-menu" class="hidden lg:hidden bg-white border-b border-slate-200 px-4 py-3 space-y-2">
+      <button class="w-full text-left py-2.5 px-3 text-sm font-medium rounded-lg text-slate-700 hover:bg-slate-100" onclick="switchNavTab('map-section', document.getElementById('nav-map')); toggleMobileMenu();">🗺️ แผนที่รอยเลื่อน</button>
+      <button class="w-full text-left py-2.5 px-3 text-sm font-medium rounded-lg text-slate-700 hover:bg-slate-100" onclick="switchNavTab('types-section', document.getElementById('nav-types')); toggleMobileMenu();">⚡ ประเภทการเคลื่อนตัว</button>
+      <button class="w-full text-left py-2.5 px-3 text-sm font-medium rounded-lg text-slate-700 hover:bg-slate-100" onclick="switchNavTab('safety-section', document.getElementById('nav-safety')); toggleMobileMenu();">🛡️ ข้อควรปฏิบัติรับมือ</button>
+      <button class="w-full text-left py-2.5 px-3 text-sm font-medium rounded-lg text-slate-700 hover:bg-slate-100" onclick="switchNavTab('about-section', document.getElementById('nav-about')); toggleMobileMenu();">📖 นิยามรอยเลื่อนมีพลัง</button>
+    </div>
+  </header>
+
+  <!-- 3. Hero Cover Section -->
+  <section class="relative bg-slate-950 text-white overflow-hidden py-12 md:py-16">
+    <div class="absolute inset-0 z-0 opacity-25 bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1508873696983-2df5057d225b?q=80&w=1600&auto=format&fit=crop');"></div>
+    <div class="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-900/90 to-red-950/80 z-0"></div>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-8 relative z-10 grid md:grid-cols-12 gap-8 items-center">
+      <div class="md:col-span-8 space-y-4">
+        <div class="inline-flex items-center space-x-2 bg-red-500/20 border border-red-500/30 text-red-300 text-xs sm:text-sm px-3.5 py-1.5 rounded-full backdrop-blur-md">
+          <span>🌋 ข้อมูลธรณีวิทยาและรอยเลื่อนมีพลัง (Active Faults)</span>
+        </div>
+        <h2 class="text-2xl sm:text-4xl font-extrabold tracking-tight text-white leading-tight">
+          การสำรวจกลุ่มรอยเลื่อนมีพลัง 16 กลุ่มในประเทศไทย
+        </h2>
+        <p class="text-slate-300 text-sm sm:text-base leading-relaxed max-w-2xl font-light">
+          ประเทศไทยมีรอยเลื่อนมีพลังหลัก 16 กลุ่ม กระจายอยู่ใน 22 จังหวัด โดยเฉพาะภาคเหนือ ภาคตะวันตก และภาคใต้ เรียนรู้กลไกการเคลื่อนตัว อัตราการเลื่อนตัว และประวัติการเกิดแผ่นดินไหวเพื่อการเตรียมพร้อมอย่างถูกวิธี
+        </p>
+      </div>
+
+      <!-- Quick Metrics Grid -->
+      <div class="md:col-span-4 bg-white/10 backdrop-blur-md p-5 rounded-2xl border border-white/10 grid grid-cols-2 gap-4">
+        <div class="p-3 bg-white/5 rounded-xl border border-white/5 text-center">
+          <span class="text-3xl font-extrabold text-red-400 block">16</span>
+          <span class="text-xs text-slate-300 font-medium">กลุ่มรอยเลื่อนหลัก</span>
+        </div>
+        <div class="p-3 bg-white/5 rounded-xl border border-white/5 text-center">
+          <span class="text-3xl font-extrabold text-amber-400 block">22</span>
+          <span class="text-xs text-slate-300 font-medium">จังหวัดพ้นภัยต้องเฝ้าระวัง</span>
+        </div>
+        <div class="p-3 bg-white/5 rounded-xl border border-white/5 text-center">
+          <span class="text-3xl font-extrabold text-cyan-400 block">6.3</span>
+          <span class="text-xs text-slate-300 font-medium">ขนาดสูงสุดที่เคยเกิด (Mw)</span>
+        </div>
+        <div class="p-3 bg-white/5 rounded-xl border border-white/5 text-center">
+          <span class="text-3xl font-extrabold text-emerald-400 block">10,000</span>
+          <span class="text-xs text-slate-300 font-medium">ปีย้อนหลังที่มีการเคลื่อนตัว</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MAIN CONTENT CONTAINER -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-8 py-8 space-y-12">
+
+    <!-- SECTION 1: INTERACTIVE FAULT MAP SECTION -->
+    <section id="map-section" class="space-y-6">
+      
+      <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-4">
+        <div>
+          <span class="text-xs font-bold text-red-600 uppercase tracking-wider">Geographic Distribution</span>
+          <h3 class="text-2xl font-bold text-slate-900 mt-1">แผนที่ปฏิสัมพันธ์แสดงรอยเลื่อนมีพลังในประเทศไทย</h3>
+          <p class="text-slate-600 text-sm mt-1">คลิกที่แนวรอยเลื่อนหรือหมุดศูนย์กลางแผ่นดินไหวในอดีตเพื่อดูรายละเอียดและอัตราการเลื่อนตัว</p>
+        </div>
+
+        <!-- Filter Controls -->
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-xs font-bold text-slate-500 mr-1">กรองตามภูมิภาค:</span>
+          <button class="filter-btn active text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700" onclick="filterFaults('all', this)">
+            ทั้งหมด (16)
+          </button>
+          <button class="filter-btn text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700" onclick="filterFaults('north', this)">
+            🏔️ ภาคเหนือ (10)
+          </button>
+          <button class="filter-btn text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700" onclick="filterFaults('west', this)">
+            ⛰️ ภาคตะวันตก (4)
+          </button>
+          <button class="filter-btn text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700" onclick="filterFaults('south', this)">
+            🌊 ภาคใต้ (2)
+          </button>
+        </div>
+      </div>
+
+      <!-- Map & Side Info Panel Layout -->
+      <div class="grid lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- Interactive Leaflet Map Box -->
+        <div class="lg:col-span-8 bg-white p-3 rounded-2xl border border-slate-200 shadow-sm relative">
+          <div id="map"></div>
+          
+          <!-- Map Legend Badge -->
+          <div class="absolute bottom-6 left-6 z-[1000] bg-white/95 backdrop-blur-md p-3.5 rounded-xl border border-slate-200 shadow-md text-xs space-y-2">
+            <div class="font-bold text-slate-900 border-b pb-1">สัญลักษณ์แผนที่</div>
+            <div class="flex items-center space-x-2">
+              <span class="w-4 h-1 bg-red-600 rounded"></span>
+              <span class="text-slate-700">แนวรอยเลื่อนมีพลังหลัก</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <span class="w-3 h-3 rounded-full bg-amber-500 border border-white"></span>
+              <span class="text-slate-700">เหตุการณ์แผ่นดินไหวเด่นในอดีต</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dynamic Side Info Panel -->
+        <div class="lg:col-span-4 space-y-4">
+          <div id="fault-info-card" class="glass-card p-6 rounded-2xl border border-slate-200 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+              <span id="fault-region-badge" class="text-xs font-semibold px-2.5 py-1 rounded-md bg-red-100 text-red-700">
+                ภาคเหนือ
+              </span>
+              <span id="fault-id-tag" class="text-xs font-bold text-slate-400">FAULT ID: FL-01</span>
+            </div>
+
+            <h4 id="fault-title" class="text-xl font-bold text-slate-900">
+              กลุ่มรอยเลื่อนแม่จัน (Mae Chan Fault)
+            </h4>
+
+            <p id="fault-description" class="text-slate-600 text-sm leading-relaxed">
+              พาดผ่านอำเภอฝาง อำเภอแม่อาย จังหวัดเชียงใหม่ และอำเภอแม่จัน อำเภอเชียงแสน อำเภอเชียงของ จังหวัดเชียงราย เป็นหนึ่งในรอยเลื่อนที่มีพลังสูงที่สุดในภาคเหนือ
+            </p>
+
+            <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2 text-xs text-slate-700">
+              <div class="flex justify-between">
+                <span class="font-medium text-slate-500">จังหวัดที่พาดผ่าน:</span>
+                <span id="fault-provinces" class="font-bold text-slate-900">เชียงใหม่, เชียงราย</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="font-medium text-slate-500">ลักษณะการเคลื่อนตัว:</span>
+                <span id="fault-type" class="font-bold text-red-600">ตามแนวระดับแบบเหลื่อมซ้าย (Left-lateral Strike-slip)</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="font-medium text-slate-500">อัตราการเลื่อนตัว (Slip Rate):</span>
+                <span id="fault-rate" class="font-bold text-slate-900">0.3 - 0.7 มม./ปี</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="font-medium text-slate-500">ความยาวประมาณ:</span>
+                <span id="fault-length" class="font-bold text-slate-900">150 กิโลเมตร</span>
+              </div>
+            </div>
+
+            <!-- Historical Earthquake Highlight -->
+            <div class="bg-amber-50 border border-amber-200 p-3.5 rounded-xl text-xs space-y-1">
+              <div class="font-bold text-amber-900 flex items-center space-x-1.5">
+                <span>💥 เหตุการณ์สำคัญในอดีต</span>
+              </div>
+              <p id="fault-history" class="text-amber-800 leading-relaxed">
+                เหตุการณ์แผ่นดินไหวขนาด 6.3 Mw ที่แม่ลาว จังหวัดเชียงราย เมื่อวันที่ 5 พฤษภาคม 2014 สร้างความเสียหายแก่อาคารและสิ่งปลูกสร้างเป็นวงกว้าง
+              </p>
+            </div>
+          </div>
+
+          <!-- Quick Tip Card -->
+          <div class="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-5 rounded-2xl shadow-sm space-y-2 border border-slate-700">
+            <div class="flex items-center space-x-2 text-amber-400 text-xs font-bold uppercase tracking-wider">
+              <span>💡 รู้หรือไม่?</span>
+            </div>
+            <p class="text-xs text-slate-300 leading-relaxed font-light">
+              รอยเลื่อนที่มีพลัง (Active Fault) หมายถึง รอยเลื่อนที่พบหลักฐานว่าเคยเกิดการเลื่อนตัวมาแล้วในช่วง 10,000 ปีที่ผ่านมา และยังมีโอกาสเกิดแผ่นดินไหวได้อีกในอนาคต
+            </p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- SECTION 2: FAULT MOVEMENT TYPES -->
+    <section id="types-section" class="space-y-6 pt-6">
+      
+      <div class="border-b border-slate-200 pb-4">
+        <span class="text-xs font-bold text-red-600 uppercase tracking-wider">Kinematics & Geology</span>
+        <h3 class="text-2xl font-bold text-slate-900 mt-1">ประเภทและกลไกการเคลื่อนตัวของรอยเลื่อน (Fault Mechanisms)</h3>
+        <p class="text-slate-600 text-sm mt-1">รอยเลื่อนเกิดจากการปลดปล่อยความเค้นสะสมในเปลือกโลก แยกออกเป็น 3 รูปแบบหลัก</p>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-6">
+        
+        <!-- Strike Slip Fault -->
+        <div class="glass-card rounded-2xl p-6 border-t-4 border-t-red-500 flex flex-col justify-between space-y-4 hover:shadow-lg transition">
+          <div class="space-y-3">
+            <div class="w-12 h-12 rounded-xl bg-red-50 border border-red-100 flex items-center justify-center text-red-600 font-bold text-2xl">
+              ↔️
+            </div>
+            <h4 class="text-lg font-bold text-slate-900">1. รอยเลื่อนตามแนวระดับ (Strike-Slip Fault)</h4>
+            <p class="text-slate-600 text-sm leading-relaxed">
+              บล็อกหินสองฝั่งเคลื่อนที่เฉือนกันในแนวระนาบราบ โดยแบ่งเป็นเหลื่อมซ้าย (Left-lateral) และเหลื่อมขวา (Right-lateral)
+            </p>
+            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs text-slate-700 space-y-1">
+              <span class="font-bold block text-slate-900">ตัวอย่างในไทย:</span>
+              <p>กลุ่มรอยเลื่อนแม่จัน, เมย, ศรีสวัสดิ์, เจดีย์สามองค์, ระนอง, คลองมารุย</p>
+            </div>
+          </div>
+          <div class="text-xs font-semibold text-red-600 bg-red-50 px-3 py-1.5 rounded-lg border border-red-100 text-center">
+            พบมากที่สุดในประเทศไทย
+          </div>
+        </div>
+
+        <!-- Normal Fault -->
+        <div class="glass-card rounded-2xl p-6 border-t-4 border-t-amber-500 flex flex-col justify-between space-y-4 hover:shadow-lg transition">
+          <div class="space-y-3">
+            <div class="w-12 h-12 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 font-bold text-2xl">
+              ↘️
+            </div>
+            <h4 class="text-lg font-bold text-slate-900">2. รอยเลื่อนปกติ (Normal Fault)</h4>
+            <p class="text-slate-600 text-sm leading-relaxed">
+              เกิดจากแรงดึงขยายตัวของเปลือกโลก ทำให้หินเพดาน (Hanging wall) เลื่อนไถลลงต่ำกว่าหินพื้น (Footwall)
+            </p>
+            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs text-slate-700 space-y-1">
+              <span class="font-bold block text-slate-900">ลักษณะธรณีสัณฐาน:</span>
+              <p>มักทำให้เกิดแอ่งเทคโทนิก (Tectonic Basin) หรือแอ่งทรุดระหว่างภูเขา เช่น แอ่งเชียงใหม่ แอ่งลำปาง</p>
+            </div>
+          </div>
+          <div class="text-xs font-semibold text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-100 text-center">
+            เกิดจากแรงดึงขยายตัว (Tensional Stress)
+          </div>
+        </div>
+
+        <!-- Reverse / Thrust Fault -->
+        <div class="glass-card rounded-2xl p-6 border-t-4 border-t-blue-500 flex flex-col justify-between space-y-4 hover:shadow-lg transition">
+          <div class="space-y-3">
+            <div class="w-12 h-12 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 font-bold text-2xl">
+              ↖️
+            </div>
+            <h4 class="text-lg font-bold text-slate-900">3. รอยเลื่อนย้อน (Reverse / Thrust Fault)</h4>
+            <p class="text-slate-600 text-sm leading-relaxed">
+              เกิดจากแรงอัดบีบอัดของเปลือกโลก ส่งผลให้หินเพดานถูกดันให้เลื่อนเกยขึ้นสูงกว่าหินพื้น
+            </p>
+            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs text-slate-700 space-y-1">
+              <span class="font-bold block text-slate-900">ลักษณะธรณีสัณฐาน:</span>
+              <p>พบตามเทือกเขาสูงที่เกิดการยกตัวและบีบอัดตัวทางธรณีแปรสัณฐาน</p>
+            </div>
+          </div>
+          <div class="text-xs font-semibold text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 text-center">
+            เกิดจากแรงอัดเข้าหากัน (Compressional Stress)
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- SECTION 3: SAFETY & PREPAREDNESS -->
+    <section id="safety-section" class="space-y-6 pt-6">
+      
+      <div class="border-b border-slate-200 pb-4">
+        <span class="text-xs font-bold text-red-600 uppercase tracking-wider">Disaster Preparedness</span>
+        <h3 class="text-2xl font-bold text-slate-900 mt-1">ข้อควรปฏิบัติและเตรียมพร้อมรับมือแผ่นดินไหว</h3>
+        <p class="text-slate-600 text-sm mt-1">แนวทางปฏิบัติเพื่อความปลอดภัยเมื่อเกิดเหตุการณ์แผ่นดินไหวทั้งก่อน เกิด และหลังเกิดเหตุ</p>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-6">
+        
+        <!-- Before -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
+          <div class="flex items-center space-x-3">
+            <span class="w-8 h-8 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center text-sm">1</span>
+            <h4 class="text-base font-bold text-slate-900">ก่อนเกิดเหตุ (Preparation)</h4>
+          </div>
+          <ul class="text-xs text-slate-600 space-y-2.5 list-disc list-inside">
+            <li>ยึดตู้ ตู้เสื้อผ้า และเฟอร์นิเจอร์หนักให้ติดกับผนังให้แน่นหนา</li>
+            <li>เตรียมกระเป๋าฉุกเฉิน (กระเป๋าเป้ยังชีพ) ยาประจำตัว น้ำดื่ม แฟลชไดรฟ์เอกสาร</li>
+            <li>ตรวจสอบและวางแผนจุดนัดพบของครอบครัว และเส้นทางอพยพ</li>
+            <li>รู้ตำแหน่งของวาล์วปิดแก๊สและสะพานไฟ (เบรกเกอร์) ในบ้าน</li>
+          </ul>
+        </div>
+
+        <!-- During -->
+        <div class="bg-white p-6 rounded-2xl border-2 border-red-500 space-y-4 shadow-sm">
+          <div class="flex items-center space-x-3">
+            <span class="w-8 h-8 rounded-full bg-red-600 text-white font-bold flex items-center justify-center text-sm">2</span>
+            <h4 class="text-base font-bold text-red-600">ขณะเกิดเหตุ (During)</h4>
+          </div>
+          <div class="bg-red-50 p-3 rounded-xl border border-red-200 text-xs text-red-900 font-bold text-center">
+            หมอบ บัง ยึดไว้ (DROP, COVER, HOLD ON)
+          </div>
+          <ul class="text-xs text-slate-600 space-y-2.5 list-disc list-inside">
+            <li><strong>หมอบ (Drop):</strong> ย่อตัวลงมือและเข่าติดพื้น</li>
+            <li><strong>บัง (Cover):</strong> มุดใต้โต๊ะแข็งแรง หรือใช้หมอนบังศีรษะ</li>
+            <li><strong>ยึดไว้ (Hold On):</strong> ยึดขาโต๊ะไว้แน่นจนกว่าแรงสั่นสะเทือนจะหยุด</li>
+            <li>หากอยู่นอกอาคาร ให้หลีกเลี่ยงเสาไฟฟ้า ป้ายโฆษณา และอาคารสูง</li>
+          </ul>
+        </div>
+
+        <!-- After -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
+          <div class="flex items-center space-x-3">
+            <span class="w-8 h-8 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center text-sm">3</span>
+            <h4 class="text-base font-bold text-slate-900">หลังเกิดเหตุ (After)</h4>
+          </div>
+          <ul class="text-xs text-slate-600 space-y-2.5 list-disc list-inside">
+            <li>เตรียมรับมือกับแผ่นดินไหวตามมา (Aftershocks) ที่อาจเกิดขึ้นได้</li>
+            <li>รีบออกจากอาคารหากพบโครงสร้างร้าวรุนแรง อย่าใช้ลิฟต์เด็ดขาด</li>
+            <li>ตรวจสอบการรั่วไหลของแก๊ส ห้ามจุดไฟหรือเปิดสวิตช์ไฟฟ้าในพื้นที่แก๊สรั่ว</li>
+            <li>ติดตามข่าวสารจากทางราชการและกรมอุตุนิยมวิทยา</li>
+          </ul>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- SECTION 4: ACTIVE FAULT DEFINITION & CONCEPTS -->
+    <section id="about-section" class="space-y-6 pt-6">
+      <div class="bg-white rounded-2xl border border-slate-200 p-6 md:p-8 shadow-sm grid md:grid-cols-12 gap-8 items-center">
+        <div class="md:col-span-8 space-y-4">
+          <span class="text-xs font-bold text-red-600 uppercase tracking-wider">Geological Concept</span>
+          <h4 class="text-2xl font-bold text-slate-900">เกณฑ์การจัดลำดับ "รอยเลื่อนมีพลัง" ในประเทศไทย</h4>
+          <p class="text-slate-600 text-sm leading-relaxed">
+            กรมทรัพยากรธรณี (Department of Mineral Resources) ได้กำหนดเกณฑ์รอยเลื่อนมีพลังโดยพิจารณาจากรอยเลื่อนที่มีหลักฐานธรณีวิทยาการเคลื่อนตัวอย่างชัดเจนในยุคพรีสโตซีนตอนปลายจนถึงยุคโฮโลซีน (ช่วงประมาณ 10,000 ปีที่ผ่านมา) โดยอาศัยเทคนิคสำรวจทางธรณีขุดร่องสำรวจ (Trenching) การหาอายุด้วยวิธีทางรังสี และการรวบรวมสถิติแผ่นดินไหว
+          </p>
+          <div class="pt-2 flex flex-wrap gap-3">
+            <span class="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-semibold">กรมทรัพยากรธรณี (DMR)</span>
+            <span class="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-semibold">กองผู้เฝ้าระวังแผ่นดินไหว</span>
+            <span class="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-semibold">จุฬาลงกรณ์มหาวิทยาลัย / ม.เชียงใหม่</span>
+          </div>
+        </div>
+        <div class="md:col-span-4 bg-slate-900 text-white p-6 rounded-2xl space-y-3">
+          <h5 class="text-sm font-bold text-amber-400">หน่วยงานแจ้งเหตุฉุกเฉิน</h5>
+          <div class="text-xs space-y-2 text-slate-300">
+            <p>📌 กองเฝ้าระวังแผ่นดินไหว กรมอุตุนิยมวิทยา: <strong class="text-white">02-399-0969</strong></p>
+            <p>📌 กรมป้องกันและบรรเทาสาธารณภัย (ปภ.): <strong class="text-white">1784</strong></p>
+            <p>📌 ศูนย์เตือนภัยพิบัติแห่งชาติ (ศชอ.): <strong class="text-white">192</strong></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="bg-slate-950 text-slate-400 text-xs py-8 border-t border-slate-800 mt-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-8 text-center space-y-3">
+      <div class="flex justify-center items-center space-x-2 text-white font-bold text-base">
+        <span>🌋 ศูนย์เรียนรู้รอยเลื่อนมีพลังและแผ่นดินไหวในประเทศไทย</span>
+      </div>
+      <p class="max-w-2xl mx-auto text-slate-400 font-light leading-relaxed">
+        พัฒนาเพื่อการเรียนรู้ด้านธรณีวิทยาและพิบัติภัยแผ่นดินไหว รูปแบบ Wix Academic/School Template (3118) สำหรับโรงเรียนและสถาบันการศึกษา
+      </p>
+      <div class="pt-4 text-slate-500 border-t border-slate-800/60">
+        © 2026 Thailand Active Faults Education Portal. All rights reserved.
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    /* ==========================================================================
+       1. DATA STRUCTURE: 16 MAJOR ACTIVE FAULT ZONES IN THAILAND
+       ========================================================================== */
+    const faultData = [
+      {
+        id: "FL-01",
+        name: "กลุ่มรอยเลื่อนแม่จัน (Mae Chan Fault)",
+        region: "north",
+        regionName: "ภาคเหนือ",
+        provinces: "เชียงใหม่, เชียงราย",
+        type: "ตามแนวระดับเหลื่อมซ้าย (Left-lateral Strike-slip)",
+        rate: "0.3 - 0.7 มม./ปี",
+        length: "150 กม.",
+        desc: "พาดผ่านอำเภอฝาง อำเภอแม่อาย จังหวัดเชียงใหม่ และอำเภอแม่จัน อำเภอเชียงแสน อำเภอเชียงของ จังหวัดเชียงราย มีพลังสูงมากในการสะสมความเค้น",
+        history: "เคยเกิดแผ่นดินไหวขนาดใหญ่ในอดีต และใกล้เคียงกับเหตุการณ์แผ่นดินไหวแม่ลาว 6.3 Mw (2014)",
+        coords: [
+          [20.0, 99.2],
+          [20.15, 99.8],
+          [20.25, 100.4]
+        ],
+        epicenter: { lat: 20.15, lng: 99.8, mag: 6.3, name: "แม่จัน / แม่ลาว" }
+      },
+      {
+        id: "FL-02",
+        name: "กลุ่มรอยเลื่อนปัว (Pua Fault)",
+        region: "north",
+        regionName: "ภาคเหนือ",
+        provinces: "น่าน",
+        type: "รอยเลื่อนปกติ และย้อน (Normal / Thrust)",
+        rate: "0.2 - 0.4 มม./ปี",
+        length: "110 กม.",
+        desc: "พาดผ่านอำเภอเชียงกลาง อำเภอปัว และอำเภอเมือง จังหวัดน่าน วางตัวตามแนวเหนือ-ใต้ ตามขอบแอ่งน่าน",
+        history: "เกิดแผ่นดินไหวขนาดเล็กถึงปานกลางต่อเนื่องในพื้นที่จังหวัดน่าน",
+        coords: [
+          [19.4, 100.9],
+          [19.1, 100.85],
+          [18.8, 100.8]
+        ],
+        epicenter: { lat: 19.1, lng: 100.85, mag: 5.1, name: "ปัว จังหวัดน่าน" }
+      },
+      {
+        id: "FL-03",
+        name: "กลุ่มรอยเลื่อนแม่ฮ่องสอน (Mae Hong Son Fault)",
+        region: "north",
+        regionName: "ภาคเหนือ",
+        provinces: "แม่ฮ่องสอน, ตาก",
+        type: "ตามแนวระดับเหลื่อมขวา (Right-lateral Strike-slip)",
+        rate: "0.1 - 0.3 มม./ปี",
+        length: "190 กม.",
+        desc: "วางตัวตามแนวเกือบเหนือ-ใต้ พาดผ่านอำเภอเมือง อำเภอขุนยวม อำเภอแม่สะเรียง จังหวัดแม่ฮ่องสอน",
+        history: "มีการไหวสะเทือนขนาดเล็กเป็นระยะในแนวเทือกเขาถนนธงชัย",
+        coords: [
+          [19.5, 97.9],
+          [18.6, 97.95],
+          [17.8, 98.0]
+        ],
+        epicenter: { lat: 18.6, lng: 97.95, mag: 4.8, name: "แม่ฮ่องสอน" }
+      },
+      {
+        id: "FL-04",
+        name: "กลุ่มรอยเลื่อนแพร่ (Phrae Fault)",
+        region: "north",
+        regionName: "ภาคเหนือ",
+        provinces: "แพร่, ลำปาง",
+        type: "ปกติและตามแนวระดับ (Normal & Strike-slip)",
+        rate: "0.2 - 0.5 มม./ปี",
+        length: "115 กม.",
+        desc: "พาดผ่านอำเภอสอง อำเภอเมือง อำเภอสูงเม่น อำเภอเด่นชัย จังหวัดแพร่ และอำเภอลอง",
+        history: "ควบคุมการเกิดแอ่งแพร่ มีสถิติแผ่นดินไหวตื้นขนาด 3.0-4.5 ริกเตอร์บ่อยครั้ง",
+        coords: [
+          [18.5, 100.3],
+          [18.1, 100.1],
+          [17.8, 99.8]
+        ],
+        epicenter: { lat: 18.1, lng: 100.1, mag: 4.5, name: "แพร่" }
+      },
+      {
+        id: "FL-05",
+        name: "กลุ่มรอยเลื่อนอุตรดิตถ์ (Uttaradit Fault)",
+        region: "north",
+        regionName: "ภาคเหนือ",
+        provinces: "อุตรดิตถ์, น่าน",
+        type: "ตามแนวระดับเหลื่อมซ้าย (Left-lateral Strike-slip)",
+        rate: "0.1 - 0.3 มม./ปี",
+        length: "130 กม.",
+        desc: "พาดผ่านอำเภอเมือง อำเภอท่าปลา อำเภอน้ำปาด จังหวัดอุตรดิตถ์ และอำเภอฟากท่า",
+        history: "มีความเชื่อมโยงกับโครงสร้างธรณีวิทยาบริเวณเขื่อนสิริกิติ์",
+        coords: [
+          [18.2, 101.1],
+          [17.7, 100.5],
+          [17.4, 100.1]
+        ],
+        epicenter: { lat: 17.7, lng: 100.5, mag: 4.2, name: "อุตรดิตถ์" }
+      },
+      {
+        id: "FL-06",
+        name: "กลุ่มรอยเลื่อนเมย (Moei Fault)",
+        region: "west",
+        regionName: "ภาคตะวันตก",
+        provinces: "ตาก, กำแพงเพชร",
+        type: "ตามแนวระดับเหลื่อมขวา (Right-lateral Strike-slip)",
+        rate: "0.2 - 0.6 มม./ปี",
+        length: "250 กม.",
+        desc: "วางตัวแนวตะวันตกเฉียงเหนือ-ตะวันออกเฉียงใต้ พาดผ่านอำเภอแม่สอด อำเภอแม่ระมาด จังหวัดตาก",
+        history: "เป็นรอยเลื่อนขนาดยาวที่ต่อเนื่องมาจากประเทศเมียนมา",
+        coords: [
+          [17.2, 98.4],
+          [16.6, 98.9],
+          [16.0, 99.4]
+        ],
+        epicenter: { lat: 16.6, lng: 98.9, mag: 5.6, name: "แม่สอด จังหวัดตาก" }
+      },
+      {
+        id: "FL-07",
+        name: "กลุ่มรอยเลื่อนศรีสวัสดิ์ (Si Sawat Fault)",
+        region: "west",
+        regionName: "ภาคตะวันตก",
+        provinces: "กาญจนบุรี, ตาก, สุพรรณบุรี",
+        type: "ตามแนวระดับเหลื่อมขวา (Right-lateral Strike-slip)",
+        rate: "0.2 - 0.5 มม./ปี",
+        length: "220 กม.",
+        desc: "พาดผ่านอำเภออุ้มผาง จังหวัดตาก อำเภอทองผาภูมิ อำเภอศรีสวัสดิ์ จังหวัดกาญจนบุรี",
+        history: "เคยเกิดแผ่นดินไหวขนาด 5.9 Mw เมื่อปี พ.ศ. 2526 บริเวณอำเภอศรีสวัสดิ์",
+        coords: [
+          [15.5, 98.8],
+          [14.8, 99.1],
+          [14.2, 99.4]
+        ],
+        epicenter: { lat: 14.8, lng: 99.1, mag: 5.9, name: "ศรีสวัสดิ์ (พ.ศ. 2526)" }
+      },
+      {
+        id: "FL-08",
+        name: "กลุ่มรอยเลื่อนเจดีย์สามองค์ (Three Pagodas Fault)",
+        region: "west",
+        regionName: "ภาคตะวันตก",
+        provinces: "กาญจนบุรี, ราชบุรี",
+        type: "ตามแนวระดับเหลื่อมขวา (Right-lateral Strike-slip)",
+        rate: "0.2 - 0.4 มม./ปี",
+        length: "200 กม.",
+        desc: "พาดผ่านด่านเจดีย์สามองค์ อำเภอสังขละบุรี อำเภอทองผาภูมิ อำเภอไทรโยค จังหวัดกาญจนบุรี",
+        history: "เป็นแนวรอยเลื่อนสำคัญที่ควบคุมหุบแม่น้ำแควน้อย",
+        coords: [
+          [15.3, 98.4],
+          [14.6, 98.9],
+          [13.9, 99.5]
+        ],
+        epicenter: { lat: 14.6, lng: 98.9, mag: 5.2, name: "สังขละบุรี" }
+      },
+      {
+        id: "FL-09",
+        name: "กลุ่มรอยเลื่อนระนอง (Ranong Fault)",
+        region: "south",
+        regionName: "ภาคใต้",
+        provinces: "ระนอง, ประจวบคีรีขันธ์, ชุมพร, พังงา",
+        type: "ตามแนวระดับเหลื่อมขวา (Right-lateral Strike-slip)",
+        rate: "0.1 - 0.4 มม./ปี",
+        length: "270 กม.",
+        desc: "พาดผ่านอำเภอเมืองระนอง อำเภอกระบุรี และยาวต่อเนื่องขึ้นไปถึงประจวบคีรีขันธ์",
+        history: "มีผลต่อการจัดตัวของบ่อน้ำร้อนธรรมชาติหลายแห่งในจังหวัดระนอง",
+        coords: [
+          [11.0, 99.2],
+          [9.9, 98.6],
+          [8.8, 98.4]
+        ],
+        epicenter: { lat: 9.9, lng: 98.6, mag: 4.6, name: "ระนอง" }
+      },
+      {
+        id: "FL-10",
+        name: "กลุ่มรอยเลื่อนคลองมารุย (Khlong Marui Fault)",
+        region: "south",
+        regionName: "ภาคใต้",
+        provinces: "สุราษฎร์ธานี, พังงา, กระบี่, ภูเก็ต",
+        type: "ตามแนวระดับเหลื่อมขวา (Right-lateral Strike-slip)",
+        rate: "0.1 - 0.3 มม./ปี",
+        length: "180 กม.",
+        desc: "พาดผ่านบ้านตาขุน จังหวัดสุราษฎร์ธานี ลงมาถึงอ่าวพังงา และอ่าวพนม",
+        history: "เคยเกิดแผ่นดินไหวขนาด 4.3 ริกเตอร์ ใกล้เกาะภูเก็ตและพังงา",
+        coords: [
+          [9.2, 98.8],
+          [8.6, 98.5],
+          [8.1, 98.3]
+        ],
+        epicenter: { lat: 8.6, lng: 98.5, mag: 4.3, name: "คลองมารุย / พังงา" }
+      },
+      {
+        id: "FL-11",
+        name: "กลุ่มรอยเลื่อนพะเยา (Phayao Fault)",
+        region: "north",
+        regionName: "ภาคเหนือ",
+        provinces: "พะเยา, เชียงราย, ลำปาง",
+        type: "ปกติและตามแนวระดับ (Normal & Strike-slip)",
+        rate: "0.2 - 0.4 มม./ปี",
+        length: "110 กม.",
+        desc: "พาดผ่านอำเภอเมืองพะเยา อำเภอดอกคำใต้ อำเภอแม่ใจ จังหวัดพะเยา",
+        history: "ควบคุมโครงสร้างการเกิดกว๊านพะเยา",
+        coords: [
+          [19.4, 99.8],
+          [19.1, 99.9],
+          [18.7, 100.0]
+        ],
+        epicenter: { lat: 19.1, lng: 99.9, mag: 4.7, name: "พะเยา" }
+      },
+      {
+        id: "FL-12",
+        name: "กลุ่มรอยเลื่อนแม่ทา (Mae Tha Fault)",
+        region: "north",
+        regionName: "ภาคเหนือ",
+        provinces: "เชียงใหม่, ลำพูน, เชียงราย",
+        type: "ตามแนวระดับและย้อน (Strike-slip & Thrust)",
+        rate: "0.1 - 0.3 มม./ปี",
+        length: "100 กม.",
+        desc: "พาดผ่านอำเภอแม่ทา จังหวัดลำพูน และอำเภอแม่ออน จังหวัดเชียงใหม่ โค้งเป็นรูปเกือกม้า",
+        history: "เกิดแผ่นดินไหวขนาดเล็กใกล้เมืองเชียงใหม่เป็นระยะ",
+        coords: [
+          [18.8, 99.2],
+          [18.5, 99.1],
+          [18.2, 98.9]
+        ],
+        epicenter: { lat: 18.5, lng: 99.1, mag: 4.1, name: "แม่ทา / ลำพูน" }
+      },
+      {
+        id: "FL-13",
+        name: "กลุ่มรอยเลื่อนเถิน (Thoen Fault)",
+        region: "north",
+        regionName: "ภาคเหนือ",
+        provinces: "ลำปาง, แพร่",
+        type: "ปกติและตามแนวระดับ (Normal & Strike-slip)",
+        rate: "0.1 - 0.3 มม./ปี",
+        length: "140 กม.",
+        desc: "พาดผ่านอำเภอเถิน อำเภอสบปราบ อำเภอแม่พริก จังหวัดลำปาง",
+        history: "เคยก่อให้เกิดแผ่นดินไหวขนาด 5.1 ริกเตอร์ ที่อำเภอเถิน ปี 2518",
+        coords: [
+          [18.0, 99.5],
+          [17.5, 99.2],
+          [17.1, 99.0]
+        ],
+        epicenter: { lat: 17.5, lng: 99.2, mag: 5.1, name: "เถิน (พ.ศ. 2518)" }
+      },
+      {
+        id: "FL-14",
+        name: "กลุ่มรอยเลื่อนเพชรบูรณ์ (Phetchabun Fault)",
+        region: "north",
+        regionName: "ภาคเหนือตอนล่าง",
+        provinces: "เพชรบูรณ์",
+        type: "ปกติ (Normal Fault)",
+        rate: "0.1 - 0.2 มม./ปี",
+        length: "120 กม.",
+        desc: "พาดผ่านอำเภอเมืองเพชรบูรณ์ อำเภอหล่มสัก อำเภอหล่มเก่า วางตัวตามแนวหุบเขาป่าสัก",
+        history: "เป็นรอยเลื่อนขอบแอ่งเพชรบูรณ์ มีสถิติแรงสั่นสะเทือนเบาบาง",
+        coords: [
+          [16.9, 101.2],
+          [16.4, 101.1],
+          [15.9, 101.0]
+        ],
+        epicenter: { lat: 16.4, lng: 101.1, mag: 4.0, name: "หล่มสัก" }
+      },
+      {
+        id: "FL-15",
+        name: "กลุ่มรอยเลื่อนด่านเจดีย์ (Dan Chedi Fault)",
+        region: "west",
+        regionName: "ภาคตะวันตก",
+        provinces: "กาญจนบุรี, สุพรรณบุรี",
+        type: "ตามแนวระดับ (Strike-slip)",
+        rate: "0.1 มม./ปี",
+        length: "70 กม.",
+        desc: "พาดผ่านอำเภอด่านช้าง จังหวัดสุพรรณบุรี และอำเภอหนองปรือ จังหวัดกาญจนบุรี",
+        history: "จัดเป็นแขนงรอยเลื่อนย่อยของกลุ่มรอยเลื่อนศรีสวัสดิ์",
+        coords: [
+          [14.9, 99.6],
+          [14.6, 99.7],
+          [14.3, 99.8]
+        ],
+        epicenter: { lat: 14.6, lng: 99.7, mag: 3.8, name: "ด่านช้าง" }
+      },
+      {
+        id: "FL-16",
+        name: "กลุ่มรอยเลื่อนเวียงแหง (Wiang Haeng Fault)",
+        region: "north",
+        regionName: "ภาคเหนือ",
+        provinces: "เชียงใหม่",
+        type: "ปกติ (Normal Fault)",
+        rate: "0.1 - 0.3 มม./ปี",
+        length: "80 กม.",
+        desc: "พาดผ่านอำเภอเวียงแหง และอำเภอสะเมิง จังหวัดเชียงใหม่ ขนานไปกับชายแดนไทย-เมียนมา",
+        history: "มีร่องรอยการเคลื่อนตัวในยุคโฮโลซีนตอนปลาย",
+        coords: [
+          [19.8, 98.6],
+          [19.3, 98.65],
+          [18.9, 98.7]
+        ],
+        epicenter: { lat: 19.3, lng: 98.65, mag: 4.4, name: "เวียงแหง" }
+      }
+    ];
+
+    /* ==========================================================================
+       2. LEAFLET MAP INITIALIZATION AND LAYER RENDERING
+       ========================================================================== */
+    let map;
+    let polylineLayers = [];
+    let markerLayers = [];
+
+    function initMap() {
+      // Center map on Thailand
+      map = L.map('map', {
+        center: [13.5, 100.5],
+        zoom: 6,
+        scrollWheelZoom: false
+      });
+
+      // CartoDB Positron / Clean Light Basemap Tile
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 19
+      }).addTo(map);
+
+      // Render fault lines & epicenters
+      renderFaultsOnMap(faultData);
+    }
+
+    function renderFaultsOnMap(data) {
+      // Clear existing layers
+      polylineLayers.forEach(layer => map.removeLayer(layer));
+      markerLayers.forEach(layer => map.removeLayer(layer));
+      polylineLayers = [];
+      markerLayers = [];
+
+      data.forEach(fault => {
+        // 1. Draw Polyline for Fault Line
+        const polyline = L.polyline(fault.coords, {
+          color: '#dc2626',
+          weight: 4,
+          opacity: 0.855,
+          dashArray: '8, 4'
+        }).addTo(map);
+
+        // Click on Polyline to select fault
+        polyline.on('click', () => {
+          selectFaultCard(fault);
+        });
+
+        polylineLayers.push(polyline);
+
+        // 2. Add Epicenter Custom Marker
+        if (fault.epicenter) {
+          const customMarker = L.circleMarker([fault.epicenter.lat, fault.epicenter.lng], {
+            radius: fault.epicenter.mag ? fault.epicenter.mag * 1.8 : 8,
+            fillColor: '#d97706',
+            color: '#ffffff',
+            weight: 2,
+            opacity: 1,
+            fillOpacity: 0.85
+          }).addTo(map);
+
+          customMarker.bindTooltip(`<b>${fault.name}</b><br>เหตุการณ์: ${fault.epicenter.name} (${fault.epicenter.mag} Mw)`, {
+            direction: 'top',
+            offset: [0, -5]
+          });
+
+          customMarker.on('click', () => {
+            selectFaultCard(fault);
+          });
+
+          markerLayers.push(customMarker);
+        }
+      });
+    }
+
+    /* ==========================================================================
+       3. INTERACTIVE FILTERING & SIDE PANEL UPDATE
+       ========================================================================== */
+    function filterFaults(region, element) {
+      // Update Active Filter UI
+      document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+      if (element) element.classList.add('active');
+
+      let filtered = [];
+      if (region === 'all') {
+        filtered = faultData;
+        map.setView([13.5, 100.5], 6);
+      } else {
+        filtered = faultData.filter(f => f.region === region);
+        // Adjust map bounds based on region
+        if (region === 'north') map.setView([18.8, 99.5], 7);
+        if (region === 'west') map.setView([15.0, 99.0], 7);
+        if (region === 'south') map.setView([9.5, 98.8], 7);
+      }
+
+      renderFaultsOnMap(filtered);
+
+      // Select first item in filtered list for display
+      if (filtered.length > 0) {
+        selectFaultCard(filtered[0]);
+      }
+    }
+
+    function selectFaultCard(fault) {
+      document.getElementById('fault-region-badge').innerText = fault.regionName;
+      document.getElementById('fault-id-tag').innerText = `FAULT ID: ${fault.id}`;
+      document.getElementById('fault-title').innerText = fault.name;
+      document.getElementById('fault-description').innerText = fault.desc;
+      document.getElementById('fault-provinces').innerText = fault.provinces;
+      document.getElementById('fault-type').innerText = fault.type;
+      document.getElementById('fault-rate').innerText = fault.rate;
+      document.getElementById('fault-length').innerText = fault.length;
+      document.getElementById('fault-history').innerText = fault.history;
+
+      // Pan smoothly to epicenter/fault
+      if (fault.epicenter) {
+        map.panTo([fault.epicenter.lat, fault.epicenter.lng]);
+      }
+    }
+
+    /* ==========================================================================
+       4. NAVIGATION & MOBILE MENU CONTROLS
+       ========================================================================== */
+    function switchNavTab(sectionId, element) {
+      document.querySelectorAll('.nav-tab-btn').forEach(btn => btn.classList.remove('active'));
+      if (element) element.classList.add('active');
+
+      const target = document.getElementById(sectionId);
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+
+    function scrollToSection(sectionId) {
+      const target = document.getElementById(sectionId);
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+
+    function toggleMobileMenu() {
+      const menu = document.getElementById('mobile-menu');
+      menu.classList.toggle('hidden');
+    }
+
+    // Initialize Map on Window Load
+    window.onload = function() {
+      initMap();
+      selectFaultCard(faultData[0]);
+    };
+  </script>
+</body>
+</html>
